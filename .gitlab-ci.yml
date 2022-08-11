@@ -1,0 +1,106 @@
+stages:
+  - dockerize
+  - test
+  - pages
+
+variables:
+  CONTAINER_IMAGE: "${CI_REGISTRY_IMAGE}:latest"
+  ALLURE_IMAGE: "${CI_REGISTRY_IMAGE}/allure-cli:latest"
+  PYTEST_ARGS: '--driver_url=http://localhost:4444/wd/hub/ --alluredir=/allure-reports --emails=${EMAILS}'
+
+.shared_docker_login: &docker_login
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+dockerize_app:
+  stage: dockerize
+  services:
+    - docker:18.09.7-dind
+  image: docker:latest
+  <<: *docker_login
+  script:
+    - docker build -t $CONTAINER_IMAGE --tag $CONTAINER_IMAGE .
+    - docker push $CONTAINER_IMAGE
+  only:
+    - master
+
+dockerize_allure:
+  stage: dockerize
+  services:
+    - docker:18.09.7-dind
+  image: docker:latest
+  <<: *docker_login
+  script:
+    - docker build --file Dockerfile_allure -t $ALLURE_IMAGE --tag $ALLURE_IMAGE .
+    - docker push $ALLURE_IMAGE
+  only:
+    - master
+
+test:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:18.09.7-dind
+  before_script:
+    - selenoid_conf_dir="$(pwd)/selenoid"
+    - mkdir "$selenoid_conf_dir"
+    - cp $(pwd)/browsers.json $selenoid_conf_dir
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull selenoid/video-recorder:latest-release
+    - docker pull aerokube/selenoid:1.10.0
+    - docker pull selenoid/chrome:80.0
+    - >
+      docker run -d -p 4444:4444 --privileged --name selenoid
+      -v /var/run/docker.sock:/var/run/docker.sock
+      -v $selenoid_conf_dir:/etc/selenoid
+      aerokube/selenoid:1.10.0
+  script:
+    - project_dir=$(pwd)
+    - reports_dir="$project_dir/allure-reports"
+    - rm -rfv "$reports_dir"
+    - mkdir -p "$reports_dir"
+    - docker pull $CONTAINER_IMAGE
+    - >
+      docker run --network="host"
+      -v "$reports_dir":/allure-reports
+      -e "PYTEST_ARGS=$PYTEST_ARGS"
+      $CONTAINER_IMAGE
+  dependencies:
+    - dockerize_app
+    - dockerize_allure
+  artifacts:
+    when: always
+    paths:
+    - allure-reports
+  allow_failure: true
+  only:
+    - master
+
+pages:
+  stage: pages
+  image: docker:latest
+  services:
+    - docker:18.09.7-dind
+  <<: *docker_login
+  script:
+    - project_dir=$(pwd)
+    - reports_dir="$project_dir/allure-reports"
+    - results_dir="$project_dir/allure-results"
+    - rm -rfv "$results_dir"
+    - mkdir -p "$results_dir"
+    - docker pull $ALLURE_IMAGE
+    - >
+      docker run
+      -v "$reports_dir":/allure-reports
+      -v "$results_dir":/allure-results
+      $ALLURE_IMAGE
+    - mkdir public
+    - cp -r "$results_dir"/* public
+  dependencies:
+    - test
+  artifacts:
+    paths:
+    - public
+  only:
+    - master

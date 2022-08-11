@@ -1,0 +1,43 @@
+version: '3'
+
+services:
+
+  allure:
+    network_mode: bridge
+    build:
+      context: .
+      dockerfile: Dockerfile_allure
+    image: $ALLURE_IMAGE
+    volumes:
+      - "${REPORT_DIR}:/allure-reports:ro"
+      - "${RESULT_DIR}:/allure-results"
+    depends_on:
+      - selenoid
+      - app
+    links:
+      - app
+    ports:
+      - "${ALLURE_PORT}:80"
+    command: sh -c "while ping -c1 app &>/dev/null; do sleep 1; done; echo 'Tests finished!' && ${ALLURE_CMD}"
+
+  app:
+    network_mode: bridge
+    build:
+      context: .
+    image: $APP_IMAGE
+    volumes:
+      - "${REPORT_DIR}:/allure-reports"
+    depends_on:
+      - selenoid
+    links:
+      - selenoid
+    command: ["./wait-for", "${SELENOID_HOST}", "--", "pytest", "--driver_url=http://${SELENOID_HOST}/wd/hub", "--alluredir=/allure-reports", "--emails=${EMAILS}"]
+
+  selenoid:
+    network_mode: bridge
+    image: "aerokube/selenoid:1.10.0"
+    volumes:
+      - "${PWD}:/etc/selenoid:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    ports:
+      - "4444:4444"

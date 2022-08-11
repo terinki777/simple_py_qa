@@ -1,92 +1,171 @@
-# simple_py_qa
+## Содержание
+- ### [Запуск тестов в Gitlab CI](#запуск-тестов-в-gitlab-ci-1)
+- ### [Запуск на локальной машине в docker с использованием docker-compose](#запуск-на-локальной-машине-в-docker-с-использованием-docker-compose-1)
+- ### [Подготовка PyCharm IDE к работе](#подготовка-pycharm-ide-к-работе-1)
+- ### [Структура проекта](#структура-проекта-1)
 
 
 
-## Getting started
+## Запуск тестов в Gitlab CI
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+  В проекте настроена автоматическая сборка docker-контейнеров и запуск тестов при коммите в ветку master.  
+  Посмотреть историю запущенных pipeline можно в разделе CI / CD слайдбара проекта.
+  
+### Для запуска pipeline (сборка необходимых контейнеров и запуск тестов) вручную, необходимо:
+- #### Открыть раздел CI / CD и нажать кнопку 'Run Pipeline'
+- #### Добавить список email-адресов для рассылки, в разделе 'Variables' указать:
+	- ##### для поля 'Input variable key':  
+          EMAILS
+	- ##### для поля 'Input variable value': список адресов, разделитель точка с запятой (;), к примеру:  
+          user1@example.ru;user2@example2.ru
+- #### нажать кнопку 'Run Pipeline'
+- #### дождаться выполнения всех шагов
+- #### открыть сформированный allur-отчет по адресу: https://kholstinin.gitlab.io/x5_demo/
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+  По адресу https://kholstinin.gitlab.io/x5_demo/ доступен только отчет по последнему прогону тестов.  
+  Посмотреть результаты выполнения предыдущих прогонов можно в разделе 'CI / CD' в слайдбаре:           
+   - Открыть раздел 'CI / CD'
+   - Нажать на идентификатор нужного 'Pipeline'
+   - Нажать на выполненный шаг 'Pages' (зеленая галочка в зеленом кружке)
+   - В разделе 'Job artifacts' нажать на кнопку 'Browse'
+   - В директории 'public' нажать на 'index.html' - отчет откроется в новой вкладке браузера
 
-## Add your files
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/Teraule/simple_py_qa.git
-git branch -M main
-git push -uf origin main
-```
+## Запуск на локальной машине в docker, с использованием docker-compose
 
-## Integrate with your tools
+После выполнения данного шага:
+  - будут собраны два контейнера, с проектом и дистрибутивом allure  
+  - загружены образы для запуска selenoid (selenoid/video-recorder:latest-release, aerokube/selenoid:1.10.0, selenoid/chrome:80.0)  
+  - произведен запуск тестов и сформирован allure-отчет  
 
-- [ ] [Set up project integrations](https://gitlab.com/Teraule/simple_py_qa/-/settings/integrations)
+Перед запуском необходимо убедиться, что в системе отсутствуют docker-образы с названиями **allure-cli** и **x5-demo**.  
+Посмотреть список существующих образов можно командой:
 
-## Collaborate with your team
+    docker images |grep -E "allure-cli|x5-demo"
+  
+- ### Зависимости: 
+      linux, git, docker, docker-compose, доступ в интернет
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+- ### Создать директории для allure-отчетов:
+      mkdir allure-results
+      mkdir allure-reports
 
-## Test and Deploy
+- ### Склонировать репозиторий https://gitlab.com/kholstinin/x5_demo.git:
+      git clone https://x5_demo_token@gitlab.com/kholstinin/x5_demo.git
+  ##### Токен для доступа:
+    - login: x5_demo_token
+    - password: n_M1rW8nhbF3pXmw2rxx
 
-Use the built-in continuous integration in GitLab.
+- ### Сменить директорию на каталог репозитория:
+      cd x5_demo
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+- ### Внести изменения в файл **.env**:
+  - Указать полный путь до ранее созданных директорий **REPORT_DIR** и **RESULT_DIR**
+  - Указать список email-адресов для рассылки писем **EMAILS** (в качестве разделителя, точка с запятой ';')
+  - Указать **ALLURE_PORT** - внешний порт для docker сервера (если allure был запущен в режиме просмотра отчета), по умолчанию 80 порт
+  - Выбрать один из двух вариантов запуска allure (раскомментировав нужный):
+    - Генерация и просмотр отчета в браузере (дополнительно будет запущен allure сервер)
+    - Только генерация отчета
 
-***
+- ### Выполнить команды в терминале:
+      docker-compose up
 
-# Editing this README
+  После удачного выполнения команды, в терминале должен появиться данный текст:
+  
+      Tests finished!
+      Report successfully generated to /allure-results
+  
+  В директории **RESULT_DIR** будет находиться готовый allure отчет.  
+  Дополнительно будет запущен allure сервер для просмотра сформированного отчета.
+  Отчет можно посмотреть по адресу:
+  
+      http://_ip_адрес_docker_сервера_/
+  либо:
+    
+      http://_ip_адрес_docker_сервера_:ALLURE_PORT/ (в случае если ALLURE_PORT отличен от 80)
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+- ### Остановить docker-контейнеры по завершении тестирования
+    Выполнить команды:
+    
+      <Ctrl+C> - остановить allure сервер (если он был запущен для просмотра результатов в браузере)  
+      docker-compose down
+  
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+- ### При необходимости, можно запустить ранее собранный docker-контейнер allure-cli и посмотреть сформированный отчет:
+  Выполнить команды:
+  
+      docker run -p 80:80 -v "_полный_путь_к_директории_allure-results_:/allure-results" allure-cli allure open /allure-results -p 80
+  К примеру:
+      
+      docker run -p 80:80 -v "/home/user/allure-results:/allure-results" allure-cli allure open /allure-results -p 80
+  Посмотреть отчет можно в браузере, введя в адресную строку: **http://_ip_адрес_docker_/**
 
-## Name
-Choose a self-explaining name for your project.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Подготовка PyCharm IDE к работе
+ 
+- ### Клонируем проект через систему контроля версий
+	- заходим VСS -> Checkout from version Control -> Git
+	- вводим https://gitlab.com/kholstinin/x5_demo.git в поле url
+	- нажимаем clone
+	- после удачного клонирования проекта - появится предложение установить requirements, на данном этапе ничего не нажимаем
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- ### Настройка проекта и создание виртуальной среды
+	- открываем File -> Settings
+	- в открывшемся окне: Project -> Project Interpreter
+	- нажимаем на 'шестеренку' - 'add'
+	- в открывшемся окне нажимаем 'ok'
+	- ждём создания виртуальной среды
+	- нажимаем 'apply', 'ok'
+	
+- ### Устанавливаем зависимости проекта
+	- Соглашаемся на предложение устанавливать requirements.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+- ### Выбираем ранером PyTest
+    - открываем File -> Settings
+	- в открывшемся окне: Tools -> Python Integrated Tools
+	- в поле 'Default test runner' выбираем 'pytest'
+	- нажимаем 'apply', 'ok'
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+- ### Копируем chromedriver в директорию framework/drivers/_Тип_ОС_
+	- Скачиваем [chromedriver](https://chromedriver.chromium.org/downloads), версия драйвера должна соответствовать версии вашего браузера и ОС  
+	- копируем в вышеуказанную директорию
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+  Если все шаги прошли успешно - можно произвести запуск тестов средствами IDE PyCharm
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Структура проекта
+  
+ - **framework/**
+	- **drivers/** - директория для хранения драйверов для браузеров
+	- **resources/** - ресурсы и тестовые данные
+		- **img/** - директория для хранения различных ресурсов, необходимых для выполнения тестовых сценариев
+		- **test_params/** - директория для хранения тестовых данных, необходимых для выполнения тестовых сценариев
+	- **ui_pages/** - директория для хранения PO
+	- **config.py** - вспомогательный класс для конфигурации проекта во время выполнения
+	- **utils.py** - различные вспомогательные утилилты
+	- **webdriver_manager.py** - вспомогательный класс для управления Web драйвером
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+- **reports/** - директория для хранения результирующих отчетов
 
-## License
-For open source projects, say how it is licensed.
+- **tests/** - директория для хранения тестовых классов
+	- **ui/** - директория для хранения тестовых классов для UI-тестирования
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- **requirements.txt** - зависимости проекта
+
+- **defaults.ini** - файл с конфигурацией проекта
+- **pytest.ini** - файл с конфигурацией pytest
+
+- **Dockerfile** - файл для сборки docker-контейнера с проектом
+- **wait-for** - скрипт для docker-контейнера с проектом (ожидание старта selenoid в docker-compose)
+- **Dockerfile_allure** - файл для сборки docker-контейнера с allure
+
+- **browsers.json** - конфигурационный файл selenoid
+
+- **.gitlab-ci.yml** - конфигурационный файл для Gitlab CI
+
+- **docker-compose.yml** - конфигурационный файл для docker-compose
+- **.env** - переменные окружения для docker-compose
